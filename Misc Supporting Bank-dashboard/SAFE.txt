@@ -1,0 +1,621 @@
+import React, { useState, useEffect, useCallback} from 'react';
+import { Slider, Card, CardContent, CardHeader, CardTitle, Input } from './components/ui';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { ArrowUpIcon, ArrowDownIcon } from 'lucide-react';
+import { apiService } from './apiService';
+import AssetBalanceChart from './components/charts/AssetBalanceChart';
+
+const defaultState = {
+  interestRate: 3,
+  loanVolume: 1000000,
+  depositGrowth: 5,
+  nonInterestIncome: 500000,
+  operatingExpenses: 800000,
+  creditLossRate: 0.5,
+  capitalRatio: 10,
+  liquidityRatio: 20,
+  feeIncome: 200000,
+  branchExpansion: 0
+};
+
+//Generates the yearly time horizon of 5 years from current year
+const generateYearlyAssumptions = (baseValues) => {
+  const currentYear = new Date().getFullYear();
+  return Object.fromEntries(
+    Object.entries(baseValues).map(([key, value]) => [
+      key,
+      Array.from({ length: 5 }, (_, i) => ({ 
+        year: currentYear + i, 
+        base: value, 
+        forecast: value 
+      }))
+    ])
+  );
+};
+
+const defaultAssumptions = generateYearlyAssumptions({
+  inflationRate: 2,
+  gdpGrowthRate: 2.5,
+  unemploymentRate: 4,
+  fedFundsRate: 1.5,
+});
+
+// Updated formatLabel function
+const formatLabel = (str) => {
+  // Special case for GDP
+  if (str.toLowerCase().includes('gdp')) {
+    return str
+      .replace(/([A-Z])/g, ' $1')
+      .replace(/^./, (s) => s.toUpperCase())
+      .replace(/\bgdp\b/gi, 'GDP')
+      .trim();
+  }
+  
+  // General case
+  return str
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/^./, (s) => s.toUpperCase())
+    .trim();
+};
+
+// State declarations begin here
+const BankDashboard = () => {
+  const [state, setState] = useState(defaultState);
+  const [assumptions, setAssumptions] = useState(defaultAssumptions);
+  const [metrics, setMetrics] = useState({});
+  const [chartData, setChartData] = useState([]);
+  const [assetBalances, setAssetBalances] = useState([]);
+  const [processedAssetBalances, setProcessedAssetBalances] = useState([]);
+  const [scenarioAssumptions, setScenarioAssumptions] = useState({
+    growthRate: 5, // Default 5% annual growth rate
+  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null); 
+// State declarations end here
+
+// Add the new useEffect here
+useEffect(() => {
+  console.log('Asset Balances:', assetBalances);
+}, [assetBalances]);
+
+  // Updates begin here
+  const calculateMetrics = useCallback(() => {
+    const newChartData = [];
+    for (let i = 0; i < 5; i++) {
+      const year = new Date().getFullYear() + i;
+      // Updated: Create yearAssumptions with the correct structure for each year
+      const yearAssumptions = Object.fromEntries(
+        Object.entries(assumptions).map(([key, values]) => [key, values[i]])
+      );
+      const baseMetrics = calculateYearMetrics(state, yearAssumptions, i, 'base');
+      const forecastMetrics = calculateYearMetrics(state, yearAssumptions, i, 'forecast');
+      newChartData.push({
+        year,
+        ...baseMetrics,
+        ...forecastMetrics,
+      });
+    }
+    setChartData(newChartData);
+    setMetrics(newChartData[0]);
+  }, [state, assumptions]);
+  // Updates end here
+
+
+  const fetchData = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const [bankParameters, economicAssumptions, assetBalances] = await Promise.all([
+        apiService.fetchBankParameters(),
+        apiService.fetchEconomicAssumptions(),
+        apiService.fetchAssetBalances()
+      ]);
+
+      console.log('Fetched asset balances:', assetBalances);
+      setAssetBalances(assetBalances);
+
+
+      //const loanData = await loanRes.json();
+      //const paramData = await paramRes.json();
+      //const assumptionData = await assumptionRes.json();
+      //const assetBalanceData = await assetBalanceRes.json();
+      //setAssetBalances(assetBalanceData);
+
+      // Update bank parameters
+      const newState = { ...defaultState };
+      bankParameters.forEach(param => {
+        if (newState.hasOwnProperty(param.key)) {
+          newState[param.key] = { base: param.base, forecast: param.forecast };
+        }
+      });
+      setState(newState);
+
+
+      // Update economic assumptions
+      const newAssumptions = { ...defaultAssumptions };
+      economicAssumptions.forEach(assumption => {
+        if (newAssumptions.hasOwnProperty(assumption.key)) {
+          const index = newAssumptions[assumption.key].findIndex(a => a.year === assumption.year);
+          if (index !== -1) {
+            newAssumptions[assumption.key][index] = {
+              year: assumption.year,
+              base: assumption.base,
+              forecast: assumption.forecast
+            };
+          }
+        }
+      });
+      setAssumptions(newAssumptions);
+
+      // Update asset balances
+      //setAssetBalances(assetBalanceData);
+
+    } catch (error) {
+      setError('An error occurred while fetching data');
+      console.error('Error fetching data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const saveData = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const bankParameters = Object.entries(state).map(([key, value]) => ({
+        key,
+        base: value.base,
+        forecast: value.forecast
+      }));
+
+      const economicAssumptions = Object.entries(assumptions).flatMap(([key, yearlyData]) =>
+        yearlyData.map(data => ({
+          key,
+          year: data.year,
+          base: data.base,
+          forecast: data.forecast
+        }))
+      );
+
+      await Promise.all([
+        apiService.saveBankParameters(bankParameters),
+        apiService.saveEconomicAssumptions(economicAssumptions)
+      ]);
+
+      // Optionally refetch data to ensure consistency
+      await fetchData();
+    } catch (error) {
+      setError('An error occurred while saving data');
+      console.error('Error saving data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [state, assumptions, fetchData]);
+
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  useEffect(() => {
+    calculateMetrics();
+  }, [state, assumptions, calculateMetrics]);
+
+  // Updates begin here
+  const calculateYearMetrics = (baseState, yearAssumptions, year, scenario) => {
+    // Updated: Added error checking in getAssumption function
+    const getAssumption = (key) => {
+      if (yearAssumptions[key] !== undefined) {
+        return yearAssumptions[key];
+      }
+      console.warn(`Missing assumption for ${key} in ${scenario} scenario`);
+      return 0; // or some default value
+    };
+    
+    const getParameter = (key) => scenario === 'base' ? baseState[key].base : baseState[key].forecast;
+
+    // The rest of this function remains unchanged
+    const loanVolume = getParameter('loanVolume') * Math.pow(1 + (getParameter('depositGrowth') + getAssumption('gdpGrowthRate')) / 200, year);
+    const netInterestIncome = loanVolume * (getParameter('interestRate') / 100) * (1 + getAssumption('fedFundsRate') / 200);
+    const totalIncome = netInterestIncome + getParameter('nonInterestIncome') + getParameter('feeIncome');
+    const totalExpenses = getParameter('operatingExpenses') * Math.pow(1 + getAssumption('inflationRate') / 100, year) + 
+                          (loanVolume * (getParameter('creditLossRate') / 100) * (1 + getAssumption('unemploymentRate') / 100));
+    const netIncome = totalIncome - totalExpenses;
+    const roa = (netIncome / loanVolume) * 100;
+    const roe = (netIncome / (loanVolume * (getParameter('capitalRatio') / 100))) * 100;
+
+    const prefix = scenario === 'base' ? '' : 'forecast';
+    return {
+      [`${prefix}NetIncome`]: netIncome,
+      [`${prefix}Roa`]: roa,
+      [`${prefix}Roe`]: roe,
+    };
+  };
+  // Updates end here
+
+  const handleSliderChange = (key, value) => {
+    setState(prev => ({
+      ...prev,
+      [key]: {
+        ...prev[key],
+        forecast: value
+      }
+    }));
+  };
+
+  const handleAssumptionChange = (key, year, scenario, value) => {
+    setAssumptions(prev => ({
+      ...prev,
+      [key]: prev[key].map(yearData => 
+        yearData.year === year ? { ...yearData, [scenario]: parseFloat(value) || 0 } : yearData
+      )
+    }));
+  };
+
+  const ComparisonIndicator = ({ current, baseline }) => {
+    const diff = current - baseline;
+    const color = diff > 0 ? 'text-green-500' : 'text-red-500';
+    const Icon = diff > 0 ? ArrowUpIcon : ArrowDownIcon;
+    return (
+      <span className={`flex items-center ${color}`}>
+        <Icon size={16} />
+        {Math.abs(diff).toFixed(2)}
+      </span>
+    );
+  };
+
+  const AssumptionsTable = () => (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr>
+            <th className="px-2 py-1 text-left">Assumption</th>
+            <th className="px-2 py-1 text-left">Case</th>
+            {assumptions.inflationRate.map(({ year }) => (
+              <th key={year} className="px-2 py-1 text-center">{year}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {Object.entries(assumptions).map(([key, yearlyData]) => (
+            <React.Fragment key={key}>
+              <tr>
+                <td rowSpan="2" className="px-2 py-1 font-medium">{formatLabel(key)}</td>
+                <td className="px-2 py-1">Base</td>
+                {yearlyData.map(({ year, base }) => (
+                  <td key={year} className="px-2 py-1">
+                    <Input
+                      type="number"
+                      value={base}
+                      onChange={(e) => handleAssumptionChange(key, year, 'base', e.target.value)}
+                      className="w-full bg-black text-white border-gray-600"
+                    />
+                  </td>
+                ))}
+              </tr>
+              <tr>
+                <td className="px-2 py-1">Forecast</td>
+                {yearlyData.map(({ year, forecast }) => (
+                  <td key={year} className="px-2 py-1">
+                    <Input
+                      type="number"
+                      value={forecast}
+                      onChange={(e) => handleAssumptionChange(key, year, 'forecast', e.target.value)}
+                      className="w-full bg-black text-white border-gray-600"
+                    />
+                  </td>
+                ))}
+              </tr>
+            </React.Fragment>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+
+  const processAssetBalances = useCallback(() => {
+    if (assetBalances.length === 0) return;
+  
+    const actualData = assetBalances.filter(item => item.Scenario === 'Actual');
+    const lastActualMonth = actualData[actualData.length - 1];
+    const lastActualDate = new Date(lastActualMonth.Period_EndDate);
+    const lastActualValue = lastActualMonth.TotalValue;
+  
+    const annualGrowthRate = scenarioAssumptions.growthRate / 100;
+    const monthlyGrowthFactor = Math.pow(1 + annualGrowthRate, 1/12);
+  
+    const extendedData = [];
+    let currentDate = new Date(lastActualDate);
+    let currentValue = lastActualValue;
+  
+    for (let i = 0; i < 24; i++) {
+      currentDate.setMonth(currentDate.getMonth() + 1);
+      currentValue *= monthlyGrowthFactor;
+  
+      extendedData.push({
+        Period_EndDate: currentDate.toISOString().split('T')[0],
+        Scenario: 'Scenario',
+        TotalValue: currentValue,
+      });
+    }
+  
+    const processedData = [...assetBalances, ...extendedData];
+    console.log('Processed Asset Balances:', processedData);
+    setProcessedAssetBalances(processedData);
+  }, [assetBalances, scenarioAssumptions.growthRate]);
+
+
+  useEffect(() => {
+    processAssetBalances();
+  }, [assetBalances, scenarioAssumptions, processAssetBalances]);
+
+  const handleScenarioAssumptionChange = (key, value) => {
+    setScenarioAssumptions(prev => ({
+      ...prev,
+      [key]: parseFloat(value),
+    }));
+  };
+
+
+  
+
+  const MathExplanation = () => (
+    <Card className="bg-[#252e3f] border-none mt-6">
+      <CardHeader>
+        <CardTitle className="text-white">Mathematical Explanations</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4 text-gray-300">
+          <div>
+            <h3 className="font-semibold text-gray-200">{formatLabel('loanVolume')} Growth</h3>
+            <p className="text-sm">
+              {formatLabel('loanVolume')}(year) = Initial{formatLabel('loanVolume')} * (1 + ({formatLabel('depositGrowth')} + {formatLabel('gdpGrowthRate')}) / 200)^year
+            </p>
+            <p className="text-xs text-gray-400">
+              The loan volume grows based on both the bank's deposit growth rate and the overall GDP growth rate.
+            </p>
+          </div>
+          <div>
+            <h3 className="font-semibold text-gray-200">Net Interest Income</h3>
+            <p className="text-sm">
+              NetInterestIncome = {formatLabel('loanVolume')} * ({formatLabel('interestRate')} / 100) * (1 + {formatLabel('fedFundsRate')} / 200)
+            </p>
+            <p className="text-xs text-gray-400">
+              Net interest income is calculated based on the loan volume, the bank's interest rate, and is adjusted by the Fed Funds Rate.
+            </p>
+          </div>
+          <div>
+            <h3 className="font-semibold text-gray-200">Total Income</h3>
+            <p className="text-sm">
+              TotalIncome = NetInterestIncome + {formatLabel('nonInterestIncome')} + {formatLabel('feeIncome')}
+            </p>
+          </div>
+          <div>
+            <h3 className="font-semibold text-gray-200">Total Expenses</h3>
+            <p className="text-sm">
+              TotalExpenses = {formatLabel('operatingExpenses')} * (1 + {formatLabel('inflationRate')} / 100)^year + 
+                              ({formatLabel('loanVolume')} * ({formatLabel('creditLossRate')} / 100) * (1 + {formatLabel('unemploymentRate')} / 100))
+            </p>
+            <p className="text-xs text-gray-400">
+              Expenses are affected by inflation over time. Credit losses are influenced by both the credit loss rate and unemployment rate.
+            </p>
+          </div>
+          <div>
+            <h3 className="font-semibold text-gray-200">Net Income</h3>
+            <p className="text-sm">
+              NetIncome = TotalIncome - TotalExpenses
+            </p>
+          </div>
+          <div>
+            <h3 className="font-semibold text-gray-200">Return on Assets (ROA)</h3>
+            <p className="text-sm">
+              ROA = (NetIncome / {formatLabel('loanVolume')}) * 100
+            </p>
+          </div>
+          <div>
+            <h3 className="font-semibold text-gray-200">Return on Equity (ROE)</h3>
+            <p className="text-sm">
+              ROE = (NetIncome / ({formatLabel('loanVolume')} * ({formatLabel('capitalRatio')} / 100))) * 100
+            </p>
+          </div>
+          <div>
+            <h3 className="font-semibold text-gray-200">Note on Base and Forecast Scenarios</h3>
+            <p className="text-sm">
+              All calculations are performed separately for base and forecast scenarios using the respective values for each parameter and assumption.
+            </p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  return (
+    <div className="min-h-screen bg-[#1c2536] text-gray-200 p-4">
+      {isLoading && <div className="text-center py-4">Loading...</div>}
+      {error && <div className="text-red-500 text-center py-4">{error}</div>}
+      <div className="max-w-7xl mx-auto">
+        <div className="flex justify-between items-center mb-4">
+          <h1 className="text-3xl font-bold text-white">Community Bank: Scenario Analyzer</h1>
+          <button onClick={saveData} className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+            Save Changes
+          </button>
+        </div>
+        
+        {/* Economic Assumptions Section */}
+        <Card className="bg-[#252e3f] border-none mb-6">
+          <CardHeader>
+            <CardTitle className="text-white">Economic Assumptions</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <AssumptionsTable />
+          </CardContent>
+        </Card>
+  
+        {/* Bank Parameters Section */}
+        <Card className="card-wrapper mb-6">
+          <CardHeader>
+            <CardTitle>Bank Parameters</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
+              {Object.entries(state).map(([key, value]) => (
+                <div key={key} className="bg-[#1e2730] p-4 rounded-lg">
+                  <label className="block text-sm font-medium mb-2">{formatLabel(key)}</label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-[#597489] mb-1">Base (Fixed)</p>
+                      <span>{value.base}</span>
+                    </div>
+                    <div>
+                      <p className="text-sm text-[#597489] mb-1">Forecast</p>
+                      <Slider
+                        defaultValue={[value.forecast]}
+                        max={key === 'loanVolume' ? 5000000 : 100}
+                        step={key === 'loanVolume' ? 100000 : 0.1}
+                        onValueChange={([val]) => handleSliderChange(key, val)}
+                        className="my-2"
+                      />
+                      <span>{value.forecast}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+  
+        {/* Scenario Assumptions Section */}
+        <Card className="card-wrapper mb-6">
+          <CardHeader>
+            <CardTitle>Scenario Assumptions</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Annual Growth Rate (%)</label>
+                <Input
+                  type="number"
+                  value={scenarioAssumptions.growthRate}
+                  onChange={(e) => handleScenarioAssumptionChange('growthRate', e.target.value)}
+                  className="w-full bg-black text-white border-gray-600"
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  This rate will be applied annually to project the scenario for 24 months after the last actual data point.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+  
+        {/* Metrics Section */}
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          <Card className="card-wrapper">
+            <CardHeader>
+              <CardTitle>Net Income</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold">${metrics.netIncome?.toFixed(2)}</p>
+              <ComparisonIndicator current={metrics.netIncome} baseline={metrics.forecastNetIncome} />
+            </CardContent>
+          </Card>
+          <Card className="card-wrapper">
+            <CardHeader>
+              <CardTitle>ROA</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold">{metrics.roa?.toFixed(2)}%</p>
+              <ComparisonIndicator current={metrics.roa} baseline={metrics.forecastRoa} />
+            </CardContent>
+          </Card>
+          <Card className="card-wrapper">
+            <CardHeader>
+              <CardTitle>ROE</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold">{metrics.roe?.toFixed(2)}%</p>
+              <ComparisonIndicator current={metrics.roe} baseline={metrics.forecastRoe} />
+            </CardContent>
+          </Card>
+          <Card className="card-wrapper">
+            <CardHeader>
+              <CardTitle>Net Interest Margin</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold">{metrics.netInterestMargin?.toFixed(2)}%</p>
+            </CardContent>
+          </Card>
+          <Card className="card-wrapper">
+            <CardHeader>
+              <CardTitle>Efficiency Ratio</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold">{metrics.efficiencyRatio?.toFixed(2)}%</p>
+            </CardContent>
+          </Card>
+          <Card className="card-wrapper">
+            <CardHeader>
+              <CardTitle>Loan to Deposit Ratio</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold">{metrics.loanToDepositRatio?.toFixed(2)}%</p>
+            </CardContent>
+          </Card>
+        </div>
+  
+        {/* Charts Section */}
+        <div className="grid grid-cols-1 gap-6">
+          <AssetBalanceChart assetBalances={processedAssetBalances} />
+          <Card className="card-wrapper">
+            <CardHeader>
+              <CardTitle>Net Income Forecast</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#2c3c49" />
+                    <XAxis dataKey="year" stroke="#597489" />
+                    <YAxis domain={['auto', 'auto']} stroke="#597489" />
+                    <Tooltip contentStyle={{ backgroundColor: '#1e2730', border: '1px solid #385063' }} />
+                    <Legend />
+                    <Line type="monotone" dataKey="netIncome" stroke="#38bdf8" name="Base Forecast" />
+                    <Line type="monotone" dataKey="forecastNetIncome" stroke="#ef4444" name="Scenario Forecast" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="card-wrapper">
+            <CardHeader>
+              <CardTitle>ROA and ROE Forecast</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#2c3c49" />
+                    <XAxis dataKey="year" stroke="#597489" />
+                    <YAxis domain={['auto', 'auto']} stroke="#597489" />
+                    <Tooltip contentStyle={{ backgroundColor: '#1e2730', border: '1px solid #385063' }} />
+                    <Legend />
+                    <Line type="monotone" dataKey="roa" stroke="#38bdf8" name="ROA Base" />
+                    <Line type="monotone" dataKey="roe" stroke="#4ade80" name="ROE Base" />
+                    <Line type="monotone" dataKey="forecastRoa" stroke="#fbbf24" name="ROA Forecast" strokeDasharray="5 5" />
+                    <Line type="monotone" dataKey="forecastRoe" stroke="#f87171" name="ROE Forecast" strokeDasharray="5 5" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+  
+        {/* Mathematical Explanations Section */}
+        <MathExplanation />
+      </div>
+    </div>
+  );
+
+  
+};  // This closes the BankDashboard component
+
+export default BankDashboard;

@@ -1,0 +1,327 @@
+[
+  {
+    "Period_EndDate": "01/31/2022",
+    "Scenario": 9680.0,
+    "TotalValue": "Actual"
+  },
+  {
+    "Period_EndDate": "01/31/2022",
+    "Scenario": 2056.003599291299,
+    "TotalValue": "Budget"
+  },
+  {
+    "Period_EndDate": "01/31/2022",
+    "Scenario": 10071.352510914894,
+    "TotalValue": "Forecast"
+  },
+  {
+    "Period_EndDate": "01/31/2023",
+    "Scenario": 19132.0,
+    "TotalValue": "Actual"
+  },
+  {
+    "Period_EndDate": "01/31/2023",
+    "Scenario": 3341.0,
+    "TotalValue": "Budget"
+  },
+  {
+    "Period_EndDate": "01/31/2023",
+    "Scenario": 8421.0,
+    "TotalValue": "Forecast"
+  },
+  {
+    "Period_EndDate": "01/31/2024",
+    "Scenario": 34812.24045709291,
+    "TotalValue": "Actual"
+  },
+  {
+    "Period_EndDate": "01/31/2024",
+    "Scenario": 8857.0,
+    "TotalValue": "Budget"
+  },
+  {
+    "Period_EndDate": "01/31/2024",
+    "Scenario": 3895.055312445194,
+    "TotalValue": "Forecast"
+  },
+  {
+    "Period_EndDate": "02/28/2022",
+    "Scenario": 33012.38039366339,
+    "TotalValue": "Actual"
+  },
+  {
+    "Period_EndDate": "02/28/2022",
+    "Scenario": 20820.61885545438,
+    "TotalValue": "Budget"
+  },
+  {
+    "Period_EndDate": "02/28/2023",
+    "Scenario": 22299.309479715666,
+    "TotalValue": "Actual"
+  },
+  {
+    "Period_EndDate": "02/28/2023",
+    "Scenario": 11822.500711243956,
+    "TotalValue": "Forecast"
+  },
+  {
+    "Period_EndDate": "02/29/2024",
+    "Scenario": 32728.573304747617,
+    "TotalValue": "Actual"
+  },
+  {
+    "Period_EndDate": "03/31/2022",
+    "Scenario": 37776.469980390444,
+    "TotalValue": "Actual"
+  },
+  {
+    "Period_EndDate": "03/31/2022",
+    "Scenario": 7204.287881432934,
+    "TotalValue": "Forecast"
+  },
+  {
+    "Period_EndDate": "03/31/2023",
+    "Scenario": 26567.447407446303,
+    "TotalValue": "Actual"
+  },
+  {
+    "Period_EndDate": "03/31/2023",
+    "Scenario": 8635.0,
+    "TotalValue": "Budget"
+  },
+  {
+    "Period_EndDate": "03/31/2023",
+    "Scenario": 18749.03086672307,
+    "TotalValue": "Forecast"
+  },
+  {
+    "Period_EndDate": "03/31/2024",
+    "Scenario": 36902.293626838655,
+    "TotalValue": "Actual"
+  },
+  {
+    "Period_EndDate": "03/31/2024",
+    "Scenario": 9545.0,
+    "TotalValue": "Budget"
+  },
+  {
+    "Period_EndDate": "04/30/2022",
+    "Scenario": 7737.0,
+    "TotalValue": "Actual"
+  },
+  {
+    "Period_EndDate": "04/30/2023",
+    "Scenario": 32520.98769989368,
+    "TotalValue": "Actual"
+  },
+  {
+    "Period_EndDate": "04/30/2023",
+    "Scenario": 6803.0,
+    "TotalValue": "Forecast"
+  },
+  {
+    "Period_EndDate": "04/30/2024",
+    "Scenario": 26139.6549501502,
+    "TotalValue": "Actual"
+  },
+  {
+    "Period_EndDate": "04/30/2024",
+    "Scenario": 7043.656094494344,
+    "TotalValue": "Forecast"
+  },
+  {
+    "Period_EndDate": "05/31/2022",
+    "Scenario": 43626.49427697744,
+    "TotalValue": "Actual"
+  },
+  {
+    "Period_EndDate": "05/31/2022",
+    "Scenario": 17065.776337377327,
+    "TotalValue": "Budget"
+  },
+  {
+    "Period_EndDate": "05/31/2022",
+    "Scenario": 18046.077863334005,
+    "TotalValue": "Forecast"
+  },
+  {
+    "Period_EndDate": "05/31/2023",
+    "Scenario": 63123.858719768716,
+    "TotalValue": "Actual"
+  },
+  {
+    "Period_EndDate": "05/31/2024",
+    "Scenario": 27401.87369213373,
+    "TotalValue": "Actual"
+  },
+  {
+    "Period_EndDate": "05/31/2024",
+    "Scenario": 7639.0,
+    "TotalValue": "Budget"
+  },
+  {
+    "Period_EndDate": "05/31/2024",
+    "Scenario": 8347.036501062754,
+    "TotalValue": "Forecast"
+  },
+  {
+    "Period_EndDate": "06/30/2022",
+    "Scenario": 16513.094936195143,
+    "TotalValue": "Actual"
+  },
+  {
+    "Period_EndDate": "06/30/2022",
+    "Scenario": 26026.189066271254,
+    "TotalValue": "Budget"
+  },
+  {
+    "Period_EndDate": "06/30/2023",
+    "Scenario": 59172.522073950226,
+    "TotalValue": "Actual"
+  },
+  {
+    "Period_EndDate": "06/30/2024",
+    "Scenario": 22299.266847788585,
+    "TotalValue": "Actual"
+  },
+  {
+    "Period_EndDate": "06/30/2024",
+    "Scenario": 13170.20496196743,
+    "TotalValue": "Budget"
+  },
+  {
+    "Period_EndDate": "07/31/2022",
+    "Scenario": 19182.113455643994,
+    "TotalValue": "Actual"
+  },
+  {
+    "Period_EndDate": "07/31/2022",
+    "Scenario": 3586.585363363436,
+    "TotalValue": "Budget"
+  },
+  {
+    "Period_EndDate": "07/31/2023",
+    "Scenario": 14847.0,
+    "TotalValue": "Actual"
+  },
+  {
+    "Period_EndDate": "07/31/2023",
+    "Scenario": 4150.0,
+    "TotalValue": "Budget"
+  },
+  {
+    "Period_EndDate": "08/31/2022",
+    "Scenario": 37450.4970098152,
+    "TotalValue": "Actual"
+  },
+  {
+    "Period_EndDate": "08/31/2022",
+    "Scenario": 13007.1447465041,
+    "TotalValue": "Forecast"
+  },
+  {
+    "Period_EndDate": "08/31/2023",
+    "Scenario": 17835.99698239369,
+    "TotalValue": "Actual"
+  },
+  {
+    "Period_EndDate": "08/31/2023",
+    "Scenario": 6879.0,
+    "TotalValue": "Forecast"
+  },
+  {
+    "Period_EndDate": "09/30/2022",
+    "Scenario": 22274.190171217033,
+    "TotalValue": "Actual"
+  },
+  {
+    "Period_EndDate": "09/30/2023",
+    "Scenario": 52313.55750074116,
+    "TotalValue": "Actual"
+  },
+  {
+    "Period_EndDate": "09/30/2023",
+    "Scenario": 3983.0,
+    "TotalValue": "Budget"
+  },
+  {
+    "Period_EndDate": "09/30/2023",
+    "Scenario": 19624.778960958633,
+    "TotalValue": "Forecast"
+  },
+  {
+    "Period_EndDate": "10/31/2022",
+    "Scenario": 8881.697824690977,
+    "TotalValue": "Actual"
+  },
+  {
+    "Period_EndDate": "10/31/2022",
+    "Scenario": 1498.0,
+    "TotalValue": "Budget"
+  },
+  {
+    "Period_EndDate": "10/31/2022",
+    "Scenario": 7144.990173711949,
+    "TotalValue": "Forecast"
+  },
+  {
+    "Period_EndDate": "10/31/2023",
+    "Scenario": 32448.257682376337,
+    "TotalValue": "Actual"
+  },
+  {
+    "Period_EndDate": "10/31/2023",
+    "Scenario": 12884.896828600622,
+    "TotalValue": "Budget"
+  },
+  {
+    "Period_EndDate": "11/30/2022",
+    "Scenario": 41316.43698352041,
+    "TotalValue": "Actual"
+  },
+  {
+    "Period_EndDate": "11/30/2022",
+    "Scenario": 10340.486078903352,
+    "TotalValue": "Budget"
+  },
+  {
+    "Period_EndDate": "11/30/2022",
+    "Scenario": 3427.926947389458,
+    "TotalValue": "Forecast"
+  },
+  {
+    "Period_EndDate": "11/30/2023",
+    "Scenario": 35682.341129667184,
+    "TotalValue": "Actual"
+  },
+  {
+    "Period_EndDate": "11/30/2023",
+    "Scenario": 4925.0,
+    "TotalValue": "Budget"
+  },
+  {
+    "Period_EndDate": "12/31/2022",
+    "Scenario": 27728.65856026586,
+    "TotalValue": "Actual"
+  },
+  {
+    "Period_EndDate": "12/31/2022",
+    "Scenario": 9149.981547747135,
+    "TotalValue": "Budget"
+  },
+  {
+    "Period_EndDate": "12/31/2022",
+    "Scenario": 18746.235541897746,
+    "TotalValue": "Forecast"
+  },
+  {
+    "Period_EndDate": "12/31/2023",
+    "Scenario": 26145.609846242085,
+    "TotalValue": "Actual"
+  },
+  {
+    "Period_EndDate": "12/31/2023",
+    "Scenario": 17979.24053634501,
+    "TotalValue": "Forecast"
+  }
+]

@@ -1,0 +1,24 @@
+{
+  "name": "qtx-bank-dashboard",
+  "version": "1.0.0",
+  "description": "QTX Bank Dashboard with React frontend and Flask backend",
+  "main": "index.js",
+  "scripts": {
+    "start": "concurrently \"npm run start-frontend\" \"npm run start-backend\"",
+    "start-frontend": "cd bank-dashboard && PORT=3001 npm start",
+    "start-backend": "node start-backend.js",
+    "build": "cd bank-dashboard && npm run build",
+    "test": "cd bank-dashboard && npm test"
+  },
+  "devDependencies": {
+    "concurrently": "^6.2.0"
+  },
+  "dependencies": {
+    "@radix-ui/react-label": "^2.1.0",
+    "@radix-ui/react-select": "^2.1.1",
+    "@radix-ui/react-slider": "^1.2.0",
+    "d3-array": "^3.2.4",
+    "d3-scale": "^4.0.2",
+    "react-router-dom": "^6.25.1"
+  }
+}

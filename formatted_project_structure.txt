@@ -1,0 +1,107 @@
+.
+.DS_Store
+Backend-Flask
+.env
+MermaidReadMe.ipynb
+MermaidReadMe2.ipynb
+RMProForma_Calculations.py
+app.py
+config.py
+get-pip.py
+instance
+├── QTX_BankData.db
+models.py
+package-lock.json
+package.json
+requirements.txt
+routes.py
+test_import.py
+GL_FACT.xlsx
+GL_Fact_info.json
+Misc Supporting Bank-dashboard
+ConsolLog2.rtf
+ConsoleLog4.rtf
+DFAST_data_dictionary.pdf
+GL_FACT_DB_CREATE.ipynb
+GL_Fact_info.json
+Log5.rtf
+Logfor_RM_PF_1.rtf
+QTX_BankData.db
+SAFE.txt
+consolelog.rtf
+consolelog3.rtf
+loans_sum_by_date.json
+public_results_DFAST.csv
+public_results_DFAST_2023.csv
+public_results_DFAST_EMS_2023.csv
+testSQL.py
+~$Final_Sorted_General_Ledger_ERP_Fact_Table.xlsx
+QTX_BankData.db
+SQL_JSON_Extract.ipynb
+bank-dashboard
+.DS_Store
+.gitignore
+README.md
+build
+├── .DS_Store
+├── asset-manifest.json
+├── favicon.ico
+├── index.html
+├── logo192.png
+├── logo512.png
+├── manifest.json
+├── robots.txt
+├── static
+├── css
+  ├── main.0cc48f4b.css
+  ├── main.0cc48f4b.css.map
+├── js
+  ├── main.70cec654.js
+  ├── main.70cec654.js.LICENSE.txt
+  ├── main.70cec654.js.map
+package-lock.json
+package.json
+postcss.config.js
+public
+├── favicon.ico
+├── index.html
+├── logo192.png
+├── logo512.png
+├── manifest.json
+├── robots.txt
+src
+├── App.css
+├── App.js
+├── App.test.js
+├── components
+├── charts
+  ├── AssetBalanceChart.js
+  ├── MonthlyAnnualBalanceSheet.js
+  ├── MonthlyAnnualIncomeStatement.js
+  ├── NetIncomeChart.js
+  ├── RMProForma_FinancialStatements.js
+  ├── RMProForma_Payback.js
+  ├── RoaRoeChart.js
+├── ui
+  ├── accordion.js
+  ├── index.js
+├── index.css
+├── index.js
+├── lib
+├── utils.js
+├── logo.svg
+├── pages
+├── BankDashboard.js
+├── RMProForma_Dashboard.js
+├── reportWebVitals.js
+├── services
+├── apiService.js
+├── setupTests.js
+├── utilities
+├── RMProForma_Calculations.js
+tailwind.config.js
+custom_project_structure.txt
+loans_sum_by_date.json
+package-lock.json
+package.json
+start-backend.js

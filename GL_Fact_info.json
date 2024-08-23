@@ -1,0 +1,86 @@
+[
+  {
+    "column_name": "Period",
+    "data_type": "TEXT",
+    "is_nullable": 0,
+    "column_default": null,
+    "is_primary_key": 0
+  },
+  {
+    "column_name": "InterCo",
+    "data_type": "TEXT",
+    "is_nullable": 0,
+    "column_default": null,
+    "is_primary_key": 0
+  },
+  {
+    "column_name": "GL Account",
+    "data_type": "INTEGER",
+    "is_nullable": 0,
+    "column_default": null,
+    "is_primary_key": 0
+  },
+  {
+    "column_name": "Project",
+    "data_type": "TEXT",
+    "is_nullable": 0,
+    "column_default": null,
+    "is_primary_key": 0
+  },
+  {
+    "column_name": "Scenario",
+    "data_type": "TEXT",
+    "is_nullable": 0,
+    "column_default": null,
+    "is_primary_key": 0
+  },
+  {
+    "column_name": "Entity",
+    "data_type": "TEXT",
+    "is_nullable": 0,
+    "column_default": null,
+    "is_primary_key": 0
+  },
+  {
+    "column_name": "Measure",
+    "data_type": "TEXT",
+    "is_nullable": 0,
+    "column_default": null,
+    "is_primary_key": 0
+  },
+  {
+    "column_name": "Product",
+    "data_type": "TEXT",
+    "is_nullable": 0,
+    "column_default": null,
+    "is_primary_key": 0
+  },
+  {
+    "column_name": "Value",
+    "data_type": "REAL",
+    "is_nullable": 0,
+    "column_default": null,
+    "is_primary_key": 0
+  },
+  {
+    "column_name": "Financial_Value",
+    "data_type": "REAL",
+    "is_nullable": 0,
+    "column_default": null,
+    "is_primary_key": 0
+  },
+  {
+    "column_name": "Period_EndDate",
+    "data_type": "TEXT",
+    "is_nullable": 0,
+    "column_default": null,
+    "is_primary_key": 0
+  },
+  {
+    "column_name": "Major GL Account",
+    "data_type": "TEXT",
+    "is_nullable": 0,
+    "column_default": null,
+    "is_primary_key": 0
+  }
+]
