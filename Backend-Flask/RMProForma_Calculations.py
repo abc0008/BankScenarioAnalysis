@@ -38,7 +38,8 @@ class RMProFormaModel:
                            'goingOnYields', 'lineUtilizationPercentage', 'originationFeePercentage', 
                            'unusedCommitmentFeePercentage', 'salary', 'annualMeritIncrease',
                            'discretionaryExpenses', 'deferredCostsPerLoan', 'averageLifeLoans', 
-                           'averageLifeLines', 'prepayPercentageOfBalance', 'incentiveCompensationPercentage'
+                           'averageLifeLines', 'prepayPercentageOfBalance', 'incentiveCompensationPercentage',
+                           'avgLoanExposureAtOrigination'  # Add this new field
                            ]
         for field in required_fields:
             if field not in self.inputs:
@@ -94,7 +95,8 @@ class RMProFormaModel:
             'salary_expense', 'incentive_compensation_expense', 'benefits_expense', 'discretionary_expense',
             'total_assets', 'total_liabilities', 'total_equity',
             'loan_monthly_production', 'loan_prepayment_amount', 'loan_scheduled_amortization',
-            'line_monthly_production', 'line_prepayment_amount', 'line_utilization_production'
+            'line_monthly_production', 'line_prepayment_amount', 'line_utilization_production',
+            'deferred_origination_fees'
         ])
         
         for i, date in enumerate(self.dates):
@@ -138,7 +140,7 @@ class RMProFormaModel:
                     df.loc[date, 'interest_income_lines'] = self._calculate_interest_income_lines(i, df)
                     df.loc[date, 'interest_expense'] = self._calculate_interest_expense(i, df)
                     
-                    df.loc[date, 'origination_fees'] = self._calculate_origination_fees(i)
+                    df.loc[date, 'deferred_origination_fees'], df.loc[date, 'origination_fees'] = self._calculate_origination_fees(i, df)
                     df.loc[date, 'unused_commitment_fees'] = self._calculate_unused_commitment_fees(i, df)
                     df.loc[date, 'non_interest_income'] = df.loc[date, 'origination_fees'] + df.loc[date, 'unused_commitment_fees']
                     
@@ -191,7 +193,7 @@ class RMProFormaModel:
 
     def _calculate_efficiency_ratio(self, row):
         """Calculate efficiency ratio as non-interest expense divided by total revenue minus interest expense."""
-        total_revenue = row['interest_income_loans'] + row['interest_income_lines'] + row['non_interest_income'] - row['interest_expense']
+        total_revenue = row['interest_income_loans'] + row['interest_income_lines'] + row['origination_fees'] + row['unused_commitment_fees'] - row['interest_expense']
         if total_revenue <= 0:
             return float('inf')
         return (row['non_interest_expense'] / total_revenue)
@@ -228,19 +230,44 @@ class RMProFormaModel:
         
         return df.iloc[i]['line_balance'] * line_yield
 
-    def _calculate_origination_fees(self, i):
-        """Calculate origination fees."""
-        date = self.dates[i]
+    def _calculate_origination_fees(self, i, df):
+        """Calculate origination fees, considering deferral, amortization, and prepayments."""
+        date = df.index[i]
         if date < self.first_production_date:
-            return 0
+            return 0, 0  # Return 0 for both new fees and recognized income
         
         months_since_production = (date - self.first_production_date).days // 30
         year = min(months_since_production // 12, 4)
         
+        # Calculate new origination fees
         monthly_loan_production = self.inputs['annualProduction'][year]['loans'] / 12
         monthly_line_production = monthly_loan_production * self.inputs['loanVsLinePercentage'] / (100 - self.inputs['loanVsLinePercentage'])
-        return (monthly_loan_production + monthly_line_production) * self.inputs['originationFeePercentage'] / 100
-    
+        new_origination_fees = (monthly_loan_production + monthly_line_production) * self.inputs['originationFeePercentage'] / 100
+        
+        # Get previous deferred balance
+        if i == 0 or df.index[i-1] < self.first_production_date:
+            previous_deferred_balance = 0
+            previous_loan_balance = 0
+        else:
+            previous_deferred_balance = df.iloc[i-1]['deferred_origination_fees']
+            previous_loan_balance = df.iloc[i-1]['loan_balance'] + df.iloc[i-1]['line_balance']
+        
+        # Calculate regular amortization
+        regular_amortization = previous_deferred_balance / (self.inputs['averageLifeLoans'] * 12)
+        
+        # Calculate prepayment-related amortization
+        prepayment_rate = self.inputs['prepayPercentageOfBalance'] / 12
+        prepayment_amount = previous_loan_balance * prepayment_rate
+        prepayment_amortization = (prepayment_amount / previous_loan_balance) * previous_deferred_balance if previous_loan_balance > 0 else 0
+        
+        # Total amortization
+        total_amortization = regular_amortization + prepayment_amortization
+        
+        # Calculate new deferred balance
+        new_deferred_balance = previous_deferred_balance + new_origination_fees - total_amortization
+        
+        # Return new deferred balance and recognized income (total amortization)
+        return new_deferred_balance, total_amortization
 
     def _calculate_unused_commitment_fees(self, i, df):
         """Calculate unused commitment fees."""
@@ -384,9 +411,13 @@ class RMProFormaModel:
         months_since_production = (date - self.first_production_date).days // 30
         year = min(months_since_production // 12, 4)
         monthly_loan_production = self.inputs['annualProduction'][year]['loans'] / 12
-        deferred_costs = self.inputs['deferredCostsPerLoan'] * (monthly_loan_production / 100000)
+        monthly_line_production = monthly_loan_production * self.inputs['loanVsLinePercentage'] / (100 - self.inputs['loanVsLinePercentage'])
         
-        return monthly_salary + fringe_benefits + monthly_discretionary + deferred_costs
+        # Calculate indirect costs
+        total_production = monthly_loan_production + monthly_line_production
+        indirect_costs = (total_production / self.inputs['avgLoanExposureAtOrigination']) * 1000
+        
+        return monthly_salary + fringe_benefits + monthly_discretionary + indirect_costs
 
     def _calculate_provision_expense(self, i, df):
         """Calculate loan loss provision expense (simplified version)."""
@@ -415,7 +446,12 @@ class RMProFormaModel:
         months_since_production = (date - self.first_production_date).days // 30
         year = min(months_since_production // 12, 4)
         monthly_loan_production = self.inputs['annualProduction'][year]['loans'] / 12
-        new_fas91 = monthly_loan_production * self.inputs['deferredCostsPerLoan']
+        monthly_line_production = monthly_loan_production * self.inputs['loanVsLinePercentage'] / (100 - self.inputs['loanVsLinePercentage'])
+        
+        # Calculate new FAS 91 balance
+        total_production = monthly_loan_production + monthly_line_production
+        new_fas91 = (total_production / self.inputs['avgLoanExposureAtOrigination']) * self.inputs['deferredCostsPerLoan']
+        
         amortization = previous_balance / (self.inputs['averageLifeLoans'] * 12)
         
         return previous_balance + new_fas91 - amortization
@@ -433,13 +469,19 @@ class RMProFormaModel:
                 aggregation_dict[column] = 'mean'
             elif column in ['efficiency_ratio']:
                 aggregation_dict[column] = lambda x: x.mean() if len(x) > 0 else 0
+            elif column == 'deferred_origination_fees':
+                aggregation_dict[column] = 'last'  # Take the last value of the year
             else:
                 aggregation_dict[column] = 'sum'
 
         annual_summary = monthly_schedule.resample('YE').agg(aggregation_dict)
 
         # Calculate additional metrics
-        annual_summary['net_interest_margin'] = (annual_summary['interest_income_loans'] + annual_summary['interest_income_lines'] - annual_summary['interest_expense']) / annual_summary['total_assets']
+        annual_summary['net_interest_margin'] = ((annual_summary['interest_income_loans'] + 
+                                                 annual_summary['interest_income_lines'] + 
+                                                 annual_summary['origination_fees'] - 
+                                                 annual_summary['interest_expense']) / 
+                                                annual_summary['total_assets'])
         annual_summary['return_on_average_assets'] = annual_summary['net_income'] / annual_summary['total_assets']
         annual_summary['return_on_average_equity'] = annual_summary['net_income'] / annual_summary['total_equity']
 
@@ -516,7 +558,9 @@ class RMProFormaModel:
                 # Sum metrics
                 'total_interest_income_loans': annual_summary['interest_income_loans'].sum(),
                 'total_interest_income_lines': annual_summary['interest_income_lines'].sum(),
-                'total_interest_income': annual_summary['interest_income_loans'].sum() + annual_summary['interest_income_lines'].sum(),
+                'total_interest_income': (annual_summary['interest_income_loans'].sum() + 
+                                        annual_summary['interest_income_lines'].sum() + 
+                                        annual_summary['origination_fees'].sum()),  # Include amortized origination fees
                 'total_interest_expense': annual_summary['interest_expense'].sum(),
                 'total_non_interest_income': annual_summary['non_interest_income'].sum(),
                 'total_non_interest_expense': annual_summary['non_interest_expense'].sum(),
@@ -528,6 +572,8 @@ class RMProFormaModel:
                 'total_discretionary_expense': annual_summary['discretionary_expense'].sum(),
                 'total_origination_fees': annual_summary['origination_fees'].sum(),
                 'total_unused_commitment_fees': annual_summary['unused_commitment_fees'].sum(),
+                'total_deferred_origination_fees': annual_summary['deferred_origination_fees'].iloc[-1],  # Last value
+                'total_amortized_origination_fees': annual_summary['origination_fees'].sum(),
 
                 # Average metrics
                 'average_loan_balance': annual_summary['loan_balance'].mean(),
@@ -540,10 +586,12 @@ class RMProFormaModel:
 
                 # Calculated metrics
                 'total_revenue': (annual_summary['interest_income_loans'].sum() + 
-                                  annual_summary['interest_income_lines'].sum() + 
-                                  annual_summary['non_interest_income'].sum()),
+                                 annual_summary['interest_income_lines'].sum() + 
+                                 annual_summary['origination_fees'].sum() + 
+                                 annual_summary['non_interest_income'].sum()),
                 'net_interest_margin': ((annual_summary['interest_income_loans'].sum() + 
-                                         annual_summary['interest_income_lines'].sum() - 
+                                         annual_summary['interest_income_lines'].sum() + 
+                                         annual_summary['origination_fees'].sum() - 
                                          annual_summary['interest_expense'].sum()) / 
                                         annual_summary['total_assets'].mean()),
                 'return_on_average_assets': (annual_summary['net_income'].sum() / 
@@ -619,6 +667,21 @@ class RMProFormaModel:
                 rates = [curve.get_rate(tenor) for tenor in tenors]
                 yield_curve_data[date.strftime('%Y-%m-%d')] = dict(zip(tenors, rates))
 
+            # Include FAS 91 balance in total metrics
+            total_metrics['total_fas91_balance'] = annual_summary['fas91_balance'].iloc[-1]
+
+            # Calculate net loan balance and net assets
+            total_metrics['net_loan_balance'] = (
+                total_metrics['average_loan_balance'] + 
+                total_metrics['total_fas91_balance'] - 
+                total_metrics['total_deferred_origination_fees']
+            )
+            total_metrics['net_assets'] = (
+                total_metrics['average_total_assets'] + 
+                total_metrics['total_fas91_balance'] - 
+                total_metrics['total_deferred_origination_fees']
+            )
+
             return {
                 'monthlySchedule': monthly_schedule.reset_index().to_dict(orient='records'),
                 'annualSummary': annual_summary.reset_index().to_dict(orient='records'),
@@ -646,9 +709,6 @@ def calculate_pro_forma(inputs):
                 {k: v.item() if hasattr(v, 'item') else v for k, v in row.items()}
                 for row in results[key]
             ]
-        results['totalMetrics'] = {k: v.item() if hasattr(v, 'item') else v for k, v in results['totalMetrics'].items()}
-        if results['cumulativePayback'] is not None:
-            results['cumulativePayback'] = float(results['cumulativePayback'])
         
         # Ensure yield curve data is JSON serializable
         results['yieldCurves'] = {k: {str(tenor): float(rate) for tenor, rate in v.items()} 
