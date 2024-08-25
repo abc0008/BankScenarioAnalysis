@@ -96,7 +96,7 @@ class RMProFormaModel:
             'total_assets', 'total_liabilities', 'total_equity',
             'loan_monthly_production', 'loan_prepayment_amount', 'loan_scheduled_amortization',
             'line_monthly_production', 'line_prepayment_amount', 'line_utilization_production',
-            'deferred_origination_fees'
+            'deferred_origination_fees', 'fas91_amortization'
         ])
         
         for i, date in enumerate(self.dates):
@@ -145,7 +145,7 @@ class RMProFormaModel:
                     df.loc[date, 'non_interest_income'] = df.loc[date, 'origination_fees'] + df.loc[date, 'unused_commitment_fees']
                     
                     df.loc[date, 'provision_expense'] = self._calculate_provision_expense(i, df)
-                    df.loc[date, 'fas91_balance'] = self._calculate_fas91_balance(i, df)
+                    df.loc[date, 'fas91_balance'], df.loc[date, 'fas91_amortization'] = self._calculate_fas91_balance(i, df)
                 else:
                     # Initialize all balance sheet and income statement items to 0 for dates before first production
                     for col in df.columns:
@@ -156,7 +156,8 @@ class RMProFormaModel:
                     df.loc[date, 'salary_expense'] +
                     df.loc[date, 'benefits_expense'] +
                     df.loc[date, 'incentive_compensation_expense'] +
-                    df.loc[date, 'discretionary_expense']
+                    df.loc[date, 'discretionary_expense'] +
+                    df.loc[date, 'fas91_amortization']  # Add FAS 91 amortization to non-interest expense
                 )
 
                 df.loc[date, 'net_income'] = (
@@ -179,7 +180,12 @@ class RMProFormaModel:
                 
                 df.loc[date, 'efficiency_ratio'] = self._calculate_efficiency_ratio(df.loc[date])
                 
-                df.loc[date, 'total_assets'] = df.loc[date, 'loan_balance'] + df.loc[date, 'line_balance']
+                df.loc[date, 'total_assets'] = (
+                    df.loc[date, 'loan_balance'] + 
+                    df.loc[date, 'line_balance'] + 
+                    df.loc[date, 'fas91_balance'] - 
+                    df.loc[date, 'deferred_origination_fees']
+                )
                 df.loc[date, 'total_liabilities'] = df.loc[date, 'deposit_balance']
                 df.loc[date, 'total_equity'] = df.loc[date, 'total_assets'] - df.loc[date, 'total_liabilities']
             
@@ -433,28 +439,44 @@ class RMProFormaModel:
         return monthly_loan_production * provision_rate
 
     def _calculate_fas91_balance(self, i, df):
-        """Calculate FAS 91 balance considering new deferrals and amortization."""
+        """Calculate FAS 91 balance considering new deferrals, amortization, and prepayments."""
         date = df.index[i]
         if date < self.first_production_date:
-            return 0
-        
-        if i == 0 or df.index[i-1] < self.first_production_date:
-            previous_balance = 0
-        else:
-            previous_balance = df.iloc[i-1]['fas91_balance']
+            return 0, 0  # Return 0 for both new deferred costs and amortized costs
         
         months_since_production = (date - self.first_production_date).days // 30
         year = min(months_since_production // 12, 4)
+        
+        # Calculate new deferred costs
         monthly_loan_production = self.inputs['annualProduction'][year]['loans'] / 12
         monthly_line_production = monthly_loan_production * self.inputs['loanVsLinePercentage'] / (100 - self.inputs['loanVsLinePercentage'])
+        total_production = monthly_loan_production + monthly_line_production
+        new_deferred_costs = (total_production / self.inputs['avgLoanExposureAtOrigination']) * self.inputs['deferredCostsPerLoan']
+        
+        # Get previous deferred balance
+        if i == 0 or df.index[i-1] < self.first_production_date:
+            previous_deferred_balance = 0
+            previous_loan_balance = 0
+        else:
+            previous_deferred_balance = df.iloc[i-1]['fas91_balance']
+            previous_loan_balance = df.iloc[i-1]['loan_balance'] + df.iloc[i-1]['line_balance']
+        
+        # Calculate regular amortization
+        regular_amortization = previous_deferred_balance / (self.inputs['averageLifeLoans'] * 12)
+        
+        # Calculate prepayment-related amortization
+        prepayment_rate = self.inputs['prepayPercentageOfBalance'] / 12
+        prepayment_amount = previous_loan_balance * prepayment_rate
+        prepayment_amortization = (prepayment_amount / previous_loan_balance) * previous_deferred_balance if previous_loan_balance > 0 else 0
+        
+        # Total amortization
+        total_amortization = regular_amortization + prepayment_amortization
         
         # Calculate new FAS 91 balance
-        total_production = monthly_loan_production + monthly_line_production
-        new_fas91 = (total_production / self.inputs['avgLoanExposureAtOrigination']) * self.inputs['deferredCostsPerLoan']
+        new_fas91_balance = previous_deferred_balance + new_deferred_costs - total_amortization
         
-        amortization = previous_balance / (self.inputs['averageLifeLoans'] * 12)
-        
-        return previous_balance + new_fas91 - amortization
+        # Return new FAS 91 balance and amortized costs (total amortization)
+        return new_fas91_balance, total_amortization
 
 
         #ISSUE HERE ENDs
@@ -579,7 +601,12 @@ class RMProFormaModel:
                 'average_loan_balance': annual_summary['loan_balance'].mean(),
                 'average_line_balance': annual_summary['line_balance'].mean(),
                 'average_deposit_balance': annual_summary['deposit_balance'].mean(),
-                'average_total_assets': annual_summary['total_assets'].mean(),
+                'average_total_assets': (
+                    annual_summary['loan_balance'].mean() + 
+                    annual_summary['line_balance'].mean() + 
+                    annual_summary['fas91_balance'].mean() - 
+                    annual_summary['deferred_origination_fees'].mean()
+                ),
                 'average_total_liabilities': annual_summary['total_liabilities'].mean(),
                 'average_total_equity': annual_summary['total_equity'].mean(),
                 'average_efficiency_ratio': annual_summary['efficiency_ratio'].mean(),
@@ -669,18 +696,6 @@ class RMProFormaModel:
 
             # Include FAS 91 balance in total metrics
             total_metrics['total_fas91_balance'] = annual_summary['fas91_balance'].iloc[-1]
-
-            # Calculate net loan balance and net assets
-            total_metrics['net_loan_balance'] = (
-                total_metrics['average_loan_balance'] + 
-                total_metrics['total_fas91_balance'] - 
-                total_metrics['total_deferred_origination_fees']
-            )
-            total_metrics['net_assets'] = (
-                total_metrics['average_total_assets'] + 
-                total_metrics['total_fas91_balance'] - 
-                total_metrics['total_deferred_origination_fees']
-            )
 
             return {
                 'monthlySchedule': monthly_schedule.reset_index().to_dict(orient='records'),

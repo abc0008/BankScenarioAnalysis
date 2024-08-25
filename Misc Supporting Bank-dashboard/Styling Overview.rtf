@@ -1,0 +1,245 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2761
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 I apologize for the misunderstanding. You're absolutely right, and I'll adjust the implementation to more closely match your original image. Let's create a Kanban board with the five specific columns you mentioned, each containing multiple cards.\
+\
+\
+\
+```tsx\
+import React, \{ useState, useEffect \} from 'react';\
+import \{ Card, CardContent, CardHeader, CardTitle \} from "@/components/ui/card";\
+import \{ BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line \} from 'recharts';\
+import \{ ChevronDown \} from 'lucide-react';\
+\
+const Dashboard = () => \{\
+  const [data, setData] = useState(null);\
+\
+  useEffect(() => \{\
+    // Simulating data fetch\
+    setData(\{\
+      summary: [\
+        \{ title: "QTD Closed", value: 17.7, change: 22, changeDirection: "up" \},\
+        \{ title: "Total Pipeline", value: 21.67, change: 14, changeDirection: "up" \},\
+        \{ title: "Probability Adj Pipeline", value: 10.83, change: 33, changeDirection: "up" \},\
+        \{ title: "Closing Next 10 Days", value: 3.44, change: 14, changeDirection: "up" \},\
+        \{ title: "Close Date At Risk", value: 1.2, change: 14, changeDirection: "down" \}\
+      ],\
+      stages: [\
+        \{ id: "prospecting", name: "Prospecting", color: "#4A90E2" \},\
+        \{ id: "qualification", name: "Qualification", color: "#50C8C6" \},\
+        \{ id: "processing", name: "Processing", color: "#F06292" \},\
+        \{ id: "awaitingApproval", name: "Awaiting Approval", color: "#9C27B0" \},\
+        \{ id: "atDocs", name: "At Docs", color: "#66BB6A" \}\
+      ],\
+      opportunities: [\
+        \{ id: "1", name: "Miller Family", officer: "Sydney Cash", product: "30 Year Conv. Purch", expectedClose: "03/28/2025", value: 475000, stage: "prospecting" \},\
+        \{ id: "2", name: "Heath Family", officer: "Logan Sargeant", product: "30 Year Conv. Purch", expectedClose: "03/22/2025", value: 504000, stage: "qualification" \},\
+        \{ id: "3", name: "Jill Oates", officer: "Sydney Cash", product: "30 Year Conv. Purch", expectedClose: "02/28/2025", value: 387000, stage: "processing" \},\
+        \{ id: "4", name: "Sarah Saban", officer: "Sergio Perez", product: "5/1 ARM, Refi", expectedClose: "02/28/2025", value: 722000, stage: "awaitingApproval" \},\
+        \{ id: "5", name: "Oscar Norris", officer: "Alex Albon", product: "7/1 ARM, Conv. Purch", expectedClose: "03/01/2025", value: 375000, stage: "atDocs" \},\
+        \{ id: "6", name: "Sarah Roberts", officer: "Pierre Gasly", product: "Home Equity Line", expectedClose: "02/17/2025", value: 40000, stage: "prospecting" \},\
+        \{ id: "7", name: "James Perry", officer: "Pierre Gasly", product: "Home Equity Line", expectedClose: "02/17/2025", value: 40000, stage: "qualification" \},\
+        \{ id: "8", name: "Samual Barney", officer: "Logan Sargeant", product: "Home Equity Loan", expectedClose: "02/17/2025", value: 40000, stage: "processing" \},\
+        \{ id: "9", name: "Greg Malkovic", officer: "Pierre Gasly", product: "Home Equity Loan", expectedClose: "02/01/2025", value: 80000, stage: "awaitingApproval" \},\
+        \{ id: "10", name: "Lando Ricardo", officer: "Pierre Gasly", product: "Home Equity Line", expectedClose: "02/05/2025", value: 40000, stage: "atDocs" \},\
+        \{ id: "11", name: "William Becker", officer: "Esteban Ocan", product: "15 YR Jumbo, Refi", expectedClose: "02/14/2025", value: 985000, stage: "prospecting" \},\
+        \{ id: "12", name: "Latesha Gray", officer: "Max Verstappen", product: "30 Year Conv. Purch", expectedClose: "02/14/2025", value: 475000, stage: "qualification" \},\
+        \{ id: "13", name: "William Becker", officer: "George Russell", product: "15 YR Jumbo, Refi", expectedClose: "02/17/2025", value: 1225000, stage: "processing" \},\
+        \{ id: "14", name: "Esteban Hamilton", officer: "Esteban Ocan", product: "30 Year Conv. Purch", expectedClose: "01/22/2025", value: 455000, stage: "awaitingApproval" \},\
+        \{ id: "15", name: "Charles Sianz", officer: "George Russell", product: "15 YR Jumbo, Refi", expectedClose: "01/19/2025", value: 955000, stage: "atDocs" \}\
+      ]\
+    \});\
+  \}, []);\
+\
+  const onDragStart = (e, id) => \{\
+    e.dataTransfer.setData("text/plain", id);\
+  \};\
+\
+  const onDragOver = (e) => \{\
+    e.preventDefault();\
+  \};\
+\
+  const onDrop = (e, targetStage) => \{\
+    e.preventDefault();\
+    const opportunityId = e.dataTransfer.getData("text");\
+    \
+    setData(prevData => \{\
+      const updatedOpportunities = prevData.opportunities.map(opp => \
+        opp.id === opportunityId ? \{ ...opp, stage: targetStage \} : opp\
+      );\
+      return \{ ...prevData, opportunities: updatedOpportunities \};\
+    \});\
+  \};\
+\
+  if (!data) return <div>Loading...</div>;\
+\
+  const getOpportunitiesByStage = (stageId) => \{\
+    return data.opportunities.filter(opp => opp.stage === stageId);\
+  \};\
+\
+  const calculateStageValue = (stageId) => \{\
+    return getOpportunitiesByStage(stageId).reduce((sum, opp) => sum + opp.value, 0) / 1000000;\
+  \};\
+\
+  return (\
+    <div className="p-4 bg-gray-100">\
+      <h1 className="text-2xl font-bold mb-4">Loan Pipeline Summary</h1>\
+      \
+      \{/* Summary Cards */\}\
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-4">\
+        \{data.summary.map((item, index) => (\
+          <Card key=\{index\} className="bg-white">\
+            <CardHeader className="pb-2">\
+              <CardTitle className="text-sm font-medium text-gray-500">\{item.title\}</CardTitle>\
+            </CardHeader>\
+            <CardContent>\
+              <div className="text-2xl font-bold">$\{item.value\}MM</div>\
+              <div className=\{`text-sm $\{item.changeDirection === 'up' ? 'text-green-500' : 'text-red-500'\}`\}>\
+                \{item.changeDirection === 'up' ? '\uc0\u8593 ' : '\u8595 '\}\{item.change\}% vs [PQ]\
+              </div>\
+            </CardContent>\
+          </Card>\
+        ))\}\
+      </div>\
+\
+      \{/* Filters */\}\
+      <div className="grid grid-cols-6 gap-4 mb-4">\
+        \{['Market', 'Branch', 'MLO Team', 'Underwriter', 'Product Hierarchy', 'Lender'].map((filter) => (\
+          <div key=\{filter\} className="flex items-center justify-between bg-white p-2 rounded shadow">\
+            <span>\{filter\}</span>\
+            <ChevronDown size=\{20\} />\
+          </div>\
+        ))\}\
+      </div>\
+\
+      \{/* Kanban Board */\}\
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-4">\
+        \{data.stages.map(stage => (\
+          <div\
+            key=\{stage.id\}\
+            onDragOver=\{onDragOver\}\
+            onDrop=\{(e) => onDrop(e, stage.id)\}\
+            className="bg-white p-4 rounded-lg shadow"\
+          >\
+            <h3 className="text-lg font-semibold mb-2" style=\{\{color: stage.color\}\}>\
+              \{stage.name\} (\{getOpportunitiesByStage(stage.id).length\})\
+            </h3>\
+            <div className="text-xl font-bold mb-4" style=\{\{color: stage.color\}\}>\
+              $\{calculateStageValue(stage.id).toFixed(2)\}MM\
+            </div>\
+            <div className="space-y-2 max-h-96 overflow-y-auto">\
+              \{getOpportunitiesByStage(stage.id).map((opp) => (\
+                <div\
+                  key=\{opp.id\}\
+                  draggable\
+                  onDragStart=\{(e) => onDragStart(e, opp.id)\}\
+                  className="bg-gray-100 p-2 rounded cursor-move"\
+                >\
+                  <div className="font-medium">\{opp.name\}</div>\
+                  <div className="text-sm text-gray-600">Officer: \{opp.officer\}</div>\
+                  <div className="text-sm text-gray-600">Product: \{opp.product\}</div>\
+                  <div className="text-sm text-gray-600">Expected Close: \{opp.expectedClose\}</div>\
+                  <div className="text-sm font-semibold">$\{(opp.value / 1000).toFixed(0)\}K</div>\
+                </div>\
+              ))\}\
+            </div>\
+          </div>\
+        ))\}\
+      </div>\
+\
+      \{/* Charts */\}\
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">\
+        <Card className="bg-white col-span-1">\
+          <CardHeader>\
+            <CardTitle>Underwriting Load</CardTitle>\
+          </CardHeader>\
+          <CardContent>\
+            <ResponsiveContainer width="100%" height=\{200\}>\
+              <BarChart data=\{data.stages.map(stage => (\{ name: stage.name, value: calculateStageValue(stage.id) \}))\} layout="vertical">\
+                <CartesianGrid strokeDasharray="3 3" />\
+                <XAxis type="number" />\
+                <YAxis dataKey="name" type="category" />\
+                <Tooltip />\
+                <Bar dataKey="value" fill="#8884d8" />\
+              </BarChart>\
+            </ResponsiveContainer>\
+          </CardContent>\
+        </Card>\
+\
+        <Card className="bg-white col-span-1">\
+          <CardHeader>\
+            <CardTitle>Opportunities by Days in Stage</CardTitle>\
+          </CardHeader>\
+          <CardContent>\
+            <div className="h-[200px] flex items-center justify-center">\
+              <p className="text-gray-500">Chart placeholder</p>\
+            </div>\
+          </CardContent>\
+        </Card>\
+\
+        <Card className="bg-white col-span-1">\
+          <CardHeader>\
+            <CardTitle>Volume Trend by Stage</CardTitle>\
+          </CardHeader>\
+          <CardContent>\
+            <ResponsiveContainer width="100%" height=\{200\}>\
+              <LineChart data=\{[\
+                \{ name: 'Jan', ...Object.fromEntries(data.stages.map(stage => [stage.name, calculateStageValue(stage.id)])) \},\
+                \{ name: 'Feb', ...Object.fromEntries(data.stages.map(stage => [stage.name, calculateStageValue(stage.id) * 1.1])) \},\
+                \{ name: 'Mar', ...Object.fromEntries(data.stages.map(stage => [stage.name, calculateStageValue(stage.id) * 0.9])) \},\
+                \{ name: 'Apr', ...Object.fromEntries(data.stages.map(stage => [stage.name, calculateStageValue(stage.id) * 1.2])) \},\
+                \{ name: 'May', ...Object.fromEntries(data.stages.map(stage => [stage.name, calculateStageValue(stage.id) * 1.3])) \},\
+              ]\}>\
+                <CartesianGrid strokeDasharray="3 3" />\
+                <XAxis dataKey="name" />\
+                <YAxis />\
+                <Tooltip />\
+                <Legend />\
+                \{data.stages.map(stage => (\
+                  <Line key=\{stage.id\} type="monotone" dataKey=\{stage.name\} stroke=\{stage.color\} />\
+                ))\}\
+              </LineChart>\
+            </ResponsiveContainer>\
+          </CardContent>\
+        </Card>\
+      </div>\
+    </div>\
+  );\
+\};\
+\
+export default Dashboard;\
+\
+```\
+\
+This updated version of the dashboard now includes a Kanban board that more closely matches your original image. Here are the key changes and features:\
+\
+1. The Kanban board now has exactly five columns: Prospecting, Qualification, Processing, Awaiting Approval, and At Docs.\
+2. Each column contains multiple cards representing individual opportunities.\
+3. The cards are now more detailed, showing the client name, officer, product, expected close date, and value.\
+4. The layout closely resembles the original image, with the Kanban board taking up the middle section of the dashboard.\
+5. Drag-and-drop functionality is implemented using the HTML5 drag and drop API.\
+6. The column headers show the stage name, number of opportunities, and total value, color-coded to match the original design.\
+\
+Key points of the implementation:\
+\
+- The `data.stages` array defines the five specific stages.\
+- More sample data has been added to `data.opportunities` to populate each column with multiple cards.\
+- The `getOpportunitiesByStage` function filters opportunities for each stage.\
+- The `calculateStageValue` function computes the total value for each stage.\
+- Drag-and-drop functionality allows cards to be moved between columns, updating the state accordingly.\
+- The cards are scrollable within each column if there are many opportunities.\
+\
+To further improve this component:\
+\
+1. Replace the simulated data with actual API calls to your backend.\
+2. Implement additional functionality such as saving the new state to the backend when a card is moved.\
+3. Add error handling for API calls and data processing.\
+4. Fine-tune the styling to exactly match your design requirements.\
+5. Consider adding visual feedback during drag operations to improve user experience.\
+6. Implement the "Opportunities by Days in Stage" chart, which is currently a placeholder.\
+\
+This implementation should now provide a much closer match to your original image while maintaining the interactive Kanban board functionality. Would you like me to explain any part of this implementation in more detail or make any further adjustments?}
