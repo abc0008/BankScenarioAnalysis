@@ -8,13 +8,17 @@ print("Current working directory:", os.getcwd())
 import importlib.util  # Changed this line
 print("os module:", importlib.util.find_spec("os"))
 
-from flask import Flask, jsonify, send_from_directory
+from flask import Flask, jsonify, send_from_directory, request
 from flask_cors import CORS
 from flask_restful import Api
 from config import Config
 from models import db, init_db, check_gl_fact_table
 import logging
 from logging.config import dictConfig
+from RMProForma_Calculations import calculate_pro_forma, RMProFormaModel
+import traceback  # Added this import
+from sqlalchemy import inspect, text
+from sqlalchemy.exc import SQLAlchemyError  # Add this import
 
 # Configure logging
 dictConfig({
@@ -37,6 +41,11 @@ def create_app():
     app = Flask(__name__, static_folder='../bank-dashboard/build', static_url_path='')
     app.config.from_object(Config)
     Config.init_app(app)
+
+    # Print the full path of the database file
+    db_path = app.config['SQLALCHEMY_DATABASE_URI'].replace('sqlite:///', '')
+    print(f"Database file path: {os.path.abspath(db_path)}")
+    print(f"Database file exists: {os.path.exists(os.path.abspath(db_path))}")
 
     # Initialize extensions
     CORS(app)
@@ -68,7 +77,40 @@ def create_app():
         else:
             return send_from_directory(app.static_folder, 'index.html')
 
+    @app.route('/api/calculate-rm-pro-forma', methods=['POST'])
+    def calculate_rm_pro_forma():
+        try:
+            data = request.json
+            results = calculate_pro_forma(data)  # Use the function directly
+            return jsonify(results), 200
+        except ValueError as ve:
+            return jsonify({"error": str(ve)}), 400
+        except Exception as e:
+            app.logger.error(f"Error in calculate_rm_pro_forma: {str(e)}")
+            app.logger.error(traceback.format_exc())
+            return jsonify({"error": str(e)}), 500
+
+    # Call this function in your create_app function
+    with app.app_context():
+        get_table_names(app)
+        test_database_connection(app)
+
     return app
+
+def get_table_names(app):
+    with app.app_context():
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
+        app.logger.info(f"Tables in the database: {tables}")
+        return tables
+
+def test_database_connection(app):
+    with app.app_context():
+        try:
+            result = db.session.execute(text("SELECT 1")).fetchone()
+            print("Database connection successful:", result)
+        except SQLAlchemyError as e:
+            print("Database connection failed:", str(e))
 
 app = create_app()
 
