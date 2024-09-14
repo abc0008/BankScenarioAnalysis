@@ -2,7 +2,7 @@ import os
 
 class Config:
     basedir = os.path.abspath(os.path.dirname(__file__))
-    db_path = os.path.abspath(os.path.join(basedir, '..', 'QTX_BankData.db'))
+    db_path = os.path.abspath(os.path.join(basedir, '..', 'Sample_BankData.db'))
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or f'sqlite:///{db_path}'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     DEBUG = os.environ.get('FLASK_DEBUG', 'True') == 'True'

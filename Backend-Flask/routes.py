@@ -1,14 +1,18 @@
+# python:BankScenarioAnalysis/Backend-Flask/routes.py
+# routes.py
+
 from flask import request, jsonify, current_app
-from flask_restful import Resource
+from flask.views import MethodView
 from models import db, GLFact, BankParameter, EconomicAssumption
-from sqlalchemy import func, and_, text, inspect
+from sqlalchemy import func, and_, inspect
 from marshmallow import Schema, fields
 from RMProForma_Calculations import calculate_pro_forma
-import traceback  # Add this import
+import traceback
 import logging
 
 logger = logging.getLogger(__name__)
 
+# Schema Definitions
 class LoanBalanceSchema(Schema):
     Period_EndDate = fields.String()
     Scenario = fields.String()
@@ -35,7 +39,8 @@ bank_parameter_schema = BankParameterSchema(many=True)
 economic_assumption_schema = EconomicAssumptionSchema(many=True)
 asset_balance_schema = AssetBalanceSchema(many=True)
 
-class LoanBalanceResource(Resource):
+# Resource Classes
+class LoanBalanceResource(MethodView):
     def get(self):
         current_app.logger.info("Accessed LoanBalanceResource GET method")
         try:
@@ -63,7 +68,7 @@ class LoanBalanceResource(Resource):
             current_app.logger.error(f"Error in LoanBalanceResource GET method: {str(e)}")
             return {"error": str(e)}, 500
 
-class BankParameterResource(Resource):
+class BankParameterResource(MethodView):
     def get(self):
         current_app.logger.info("Accessed BankParameterResource GET method")
         try:
@@ -95,7 +100,7 @@ class BankParameterResource(Resource):
             db.session.rollback()
             return {"error": str(e)}, 500
 
-class EconomicAssumptionResource(Resource):
+class EconomicAssumptionResource(MethodView):
     def get(self):
         current_app.logger.info("Accessed EconomicAssumptionResource GET method")
         try:
@@ -132,7 +137,7 @@ class EconomicAssumptionResource(Resource):
             db.session.rollback()
             return {"error": str(e)}, 500
 
-class AssetBalanceResource(Resource):
+class AssetBalanceResource(MethodView):
     def get(self):
         current_app.logger.info("Accessed AssetBalanceResource GET method")
         try:
@@ -186,7 +191,7 @@ class AssetBalanceResource(Resource):
             current_app.logger.error(f"Error in AssetBalanceResource GET method: {str(e)}")
             return {"error": str(e)}, 500
 
-class RMProFormaCalculation(Resource):
+class RMProFormaCalculation(MethodView):
     def post(self):
         current_app.logger.info("Accessed RMProFormaCalculation POST method")
         try:
@@ -199,7 +204,7 @@ class RMProFormaCalculation(Resource):
             # Validate result
             if 'annualSummary' not in result:
                 current_app.logger.error(f"Missing annualSummary in calculation result: {result}")
-                raise ValueError("Calculation failed to produce annual summary data")
+                raise ValueError("annualSummary is missing from the API response")
             
             if 'cumulativePayback' not in result:
                 current_app.logger.warning(f"Missing cumulativePayback in calculation result: {result}")
@@ -212,7 +217,7 @@ class RMProFormaCalculation(Resource):
             current_app.logger.error(f"Traceback: {traceback.format_exc()}")
             return {'error': str(e)}, 400
 
-class YieldCurveResource(Resource):
+class YieldCurveResource(MethodView):
     def post(self):
         current_app.logger.info("Accessed YieldCurveResource POST method")
         try:
@@ -241,70 +246,24 @@ class YieldCurveResource(Resource):
             current_app.logger.error(f"Traceback: {traceback.format_exc()}")
             return {'error': str(e)}, 400
 
-class GLFactStatusResource(Resource):
-    def get(self):
-        current_app.logger.info("Accessed GLFactStatusResource GET method")
-        try:
-            inspector = inspect(db.engine)
-            
-            status = {
-                "table_exists": 'GL_Fact' in inspector.get_table_names(),
-                "record_count": db.session.query(GLFact).count(),
-                "columns": [col['name'] for col in inspector.get_columns('GL_Fact')],
-                "scenarios": [s[0] for s in db.session.query(GLFact.Scenario).distinct().all()]
-            }
-            
-            if status["record_count"] > 0:
-                sample = db.session.query(GLFact).first()
-                status["sample_record"] = {c.name: getattr(sample, c.name) for c in sample.__table__.columns}
-            
-            return jsonify(status)
-        except Exception as e:
-            current_app.logger.error(f"Error in GLFactStatusResource GET method: {str(e)}")
-            return {"error": str(e)}, 500
-
-class DatabaseStatusResource(Resource):
-    def get(self):
-        current_app.logger.info("Accessed DatabaseStatusResource GET method")
-        try:
-            inspector = inspect(db.engine)
-            tables = inspector.get_table_names()
-            
-            status = {
-                "database_uri": current_app.config['SQLALCHEMY_DATABASE_URI'],
-                "tables": tables,
-                "gl_fact_count": 0
-            }
-            
-            if 'GL_Fact' in tables:
-                query = text('SELECT COUNT(*) FROM "GL_Fact"')
-                result = db.session.execute(query)
-                status["gl_fact_count"] = result.scalar()
-            
-            current_app.logger.info(f"Database status: {status}")
-            return jsonify(status)
-        except Exception as e:
-            current_app.logger.error(f"Error in DatabaseStatusResource GET method: {str(e)}")
-            return {"error": str(e)}, 500
-
-class RMProFormaIntegrationTest(Resource):
+class RMProFormaIntegrationTest(MethodView):
     def get(self):
         current_app.logger.info("Running RM ProForma Integration Test")
         try:
             test_data = {
                 'annualProduction': [{'loans': 500000, 'deposits': 300000} for _ in range(5)],
                 'loanVsLinePercentage': 50,
-                'goingOnYields': [{'loans': 3, 'lines': 2, 'deposits': 3} for _ in range(5)],
+                'goingOnYields': [{'loans': 0.03, 'lines': 0.02, 'deposits': 0.03} for _ in range(5)],
                 'lineUtilizationPercentage': 50,
                 'originationFeePercentage': 0.25,
                 'unusedCommitmentFeePercentage': 0.25,
                 'salary': 75000,
-                'annualMeritIncrease': 3,
+                'annualMeritIncrease': 0.03,
                 'discretionaryExpenses': 6000,
                 'deferredCostsPerLoan': 1,
                 'averageLifeLoans': 5,
                 'averageLifeLines': 3,
-                'prepayPercentageOfBalance': 25
+                'prepayPercentageOfBalance': 0.25
             }
             
             result = calculate_pro_forma(test_data)
@@ -314,44 +273,51 @@ class RMProFormaIntegrationTest(Resource):
             current_app.logger.error(f"Integration test failed: {str(e)}")
             return {"message": f"Integration test failed: {str(e)}"}, 500
 
-class YieldCurveResource(Resource):
-    def post(self):
-        current_app.logger.info("Accessed YieldCurveResource POST method")
+# New Resource Class Definitions
+class GLFactStatusResource(MethodView):
+    def get(self):
+        current_app.logger.info("Accessed GLFactStatusResource GET method")
         try:
-            data = request.get_json()
-            current_app.logger.info(f"Received yield curve data: {data}")
-            
-            # Validate the received data
-            if not isinstance(data, dict):
-                raise ValueError("Invalid data format. Expected a dictionary.")
-            
-            for year, curve in data.items():
-                if not isinstance(curve, dict):
-                    raise ValueError(f"Invalid curve data for year {year}. Expected a dictionary.")
-                
-                for term, rate in curve.items():
-                    if not isinstance(rate, (int, float)):
-                        raise ValueError(f"Invalid rate for year {year}, term {term}. Expected a number.")
-            
-            # Process the data (in this case, we're just returning it as-is)
-            result = data
-            
-            current_app.logger.info("YieldCurveResource POST method successful")
+            count = db.session.query(GLFact).count()
+            columns = [column.name for column in GLFact.__table__.columns]
+            sample_row = db.session.query(GLFact).first()
+            sample_data = {column: getattr(sample_row, column) for column in columns} if sample_row else {}
+            result = {
+                "count": count,
+                "columns": columns,
+                "sample_row": sample_data
+            }
+            current_app.logger.info("GLFactStatusResource GET method successful")
             return jsonify(result)
         except Exception as e:
-            current_app.logger.error(f"Error in YieldCurveResource POST method: {str(e)}")
-            current_app.logger.error(f"Traceback: {traceback.format_exc()}")
-            return {'error': str(e)}, 400
+            current_app.logger.error(f"Error in GLFactStatusResource GET method: {str(e)}")
+            return {"error": str(e)}, 500
 
-def initialize_routes(api):
-    current_app.logger.info("Initializing routes")
-    api.add_resource(LoanBalanceResource, '/api/loan-balances')
-    api.add_resource(BankParameterResource, '/api/bank-parameters')
-    api.add_resource(EconomicAssumptionResource, '/api/economic-assumptions')
-    api.add_resource(AssetBalanceResource, '/api/asset-balances')
-    api.add_resource(GLFactStatusResource, '/api/gl-fact-status')
-    api.add_resource(DatabaseStatusResource, '/api/database-status')
-    api.add_resource(RMProFormaCalculation, '/api/rm-pro-forma-calculate')
-    api.add_resource(YieldCurveResource, '/api/yield-curves')
-    api.add_resource(RMProFormaIntegrationTest, '/api/rm-pro-forma-integration-test')
-    current_app.logger.info("Routes initialized successfully")
+class DatabaseStatusResource(MethodView):
+    def get(self):
+        current_app.logger.info("Accessed DatabaseStatusResource GET method")
+        try:
+            inspector = inspect(db.engine)
+            tables = inspector.get_table_names()
+            result = {
+                "status": "connected",
+                "tables": tables
+            }
+            current_app.logger.info("DatabaseStatusResource GET method successful")
+            return jsonify(result)
+        except Exception as e:
+            current_app.logger.error(f"Error in DatabaseStatusResource GET method: {str(e)}")
+            return {"error": str(e)}, 500
+
+def initialize_routes(app):
+    app.logger.info("Initializing routes")
+    app.add_url_rule('/api/loan-balances', view_func=LoanBalanceResource.as_view('loan_balances'))
+    app.add_url_rule('/api/bank-parameters', view_func=BankParameterResource.as_view('bank_parameters'))
+    app.add_url_rule('/api/economic-assumptions', view_func=EconomicAssumptionResource.as_view('economic_assumptions'))
+    app.add_url_rule('/api/asset-balances', view_func=AssetBalanceResource.as_view('asset_balances'))
+    app.add_url_rule('/api/gl-fact-status', view_func=GLFactStatusResource.as_view('gl_fact_status'))
+    app.add_url_rule('/api/database-status', view_func=DatabaseStatusResource.as_view('database_status'))
+    app.add_url_rule('/api/calculate-rm-pro-forma', view_func=RMProFormaCalculation.as_view('calculate_rm_pro_forma'))
+    app.add_url_rule('/api/yield-curves', view_func=YieldCurveResource.as_view('yield_curves'))
+    app.add_url_rule('/api/rm-pro-forma-integration-test', view_func=RMProFormaIntegrationTest.as_view('rm_pro_forma_integration_test'))
+    app.logger.info("Routes initialized successfully")

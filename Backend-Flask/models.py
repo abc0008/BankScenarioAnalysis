@@ -1,7 +1,8 @@
 import os
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import inspect
+from sqlalchemy import inspect, text
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.exc import SQLAlchemyError
 
 class Base(DeclarativeBase):
     pass
@@ -44,22 +45,18 @@ class EconomicAssumption(db.Model):
 def check_gl_fact_table(app):
     with app.app_context():
         try:
-            count = db.session.query(GLFact).count()
-            app.logger.info(f"Number of records in GL_Fact table: {count}")
-            if count > 0:
-                sample = db.session.query(GLFact).first()
-                app.logger.info(f"Sample record from GL_Fact: {sample.__dict__}")
-            else:
-                app.logger.warning("GL_Fact table is empty")
+            result = db.session.execute(text("SELECT COUNT(*) FROM GL_Fact")).scalar()
+            app.logger.info(f"GL_Fact table exists and contains {result} rows.")
             
+            # Get column information
             inspector = inspect(db.engine)
-            columns = [col['name'] for col in inspector.get_columns('GL_Fact')]
-            app.logger.info(f"Columns in GL_Fact table: {columns}")
+            columns = inspector.get_columns('GL_Fact')
+            app.logger.info(f"GL_Fact table columns: {[col['name'] for col in columns]}")
             
-            scenarios = db.session.query(GLFact.Scenario).distinct().all()
-            app.logger.info(f"Distinct scenarios in GL_Fact: {[s[0] for s in scenarios]}")
-            
-        except Exception as e:
+            # Get a sample row
+            sample_row = db.session.execute(text("SELECT * FROM GL_Fact LIMIT 1")).fetchone()
+            app.logger.info(f"Sample row from GL_Fact: {sample_row}")
+        except SQLAlchemyError as e:
             app.logger.error(f"Error checking GL_Fact contents: {str(e)}")
 
 def init_db(app):
