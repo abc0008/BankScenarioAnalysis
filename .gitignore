@@ -1,1 +1,3 @@
 node_modules
+Backend-Flask/__pycache__/
+*.pyc
