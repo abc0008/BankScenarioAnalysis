@@ -1,24 +1,20 @@
+# app.py
+
 import sys
-print("Python version:", sys.version)
-print("Python path:", sys.path)
-
 import os
-print("Current working directory:", os.getcwd())
-
-import importlib.util  # Changed this line
-print("os module:", importlib.util.find_spec("os"))
+import importlib.util
+import logging
+from logging.config import dictConfig
+import traceback
 
 from flask import Flask, jsonify, send_from_directory, request
 from flask_cors import CORS
-from flask_restful import Api
+from sqlalchemy import inspect, text
+from sqlalchemy.exc import SQLAlchemyError
+
 from config import Config
 from models import db, init_db, check_gl_fact_table
-import logging
-from logging.config import dictConfig
-from RMProForma_Calculations import calculate_pro_forma, RMProFormaModel
-import traceback  # Added this import
-from sqlalchemy import inspect, text
-from sqlalchemy.exc import SQLAlchemyError  # Add this import
+from routes import initialize_routes
 
 # Configure logging
 dictConfig({
@@ -38,7 +34,7 @@ dictConfig({
 })
 
 def create_app():
-    app = Flask(__name__, static_folder='../bank-dashboard/build', static_url_path='')
+    app = Flask(__name__, static_folder='build', static_url_path='')
     app.config.from_object(Config)
     Config.init_app(app)
 
@@ -48,18 +44,22 @@ def create_app():
     print(f"Database file exists: {os.path.exists(os.path.abspath(db_path))}")
 
     # Initialize extensions
-    CORS(app)
-    api = Api(app)
+    CORS(app)  # Enables CORS for all routes
     init_db(app)
 
     # Additional check for GL_Fact table
     with app.app_context():
         check_gl_fact_table(app)
 
-    # Import and initialize routes within the application context
+    # Initialize routes
     with app.app_context():
-        from routes import initialize_routes
-        initialize_routes(api)
+        initialize_routes(app)
+
+    # Enhanced Error Logging: Log all registered routes and methods
+    routes = {}
+    for rule in app.url_map.iter_rules():
+        routes[rule.rule] = sorted([method for method in rule.methods if method not in ('HEAD', 'OPTIONS')])
+    app.logger.info(f"Registered Routes: {routes}")
 
     @app.route('/api/')
     def api_root():
@@ -70,30 +70,12 @@ def create_app():
     @app.route('/<path:path>')
     def serve(path):
         if path.startswith('api/'):
-            # This is an API route, let Flask-RESTful handle it
+            # This is an API route, let Flask handle it
             return app.handle_http_exception(404)
         elif path != "" and os.path.exists(os.path.join(app.static_folder, path)):
             return send_from_directory(app.static_folder, path)
         else:
             return send_from_directory(app.static_folder, 'index.html')
-
-    @app.route('/api/calculate-rm-pro-forma', methods=['POST'])
-    def calculate_rm_pro_forma():
-        try:
-            data = request.json
-            results = calculate_pro_forma(data)  # Use the function directly
-            return jsonify(results), 200
-        except ValueError as ve:
-            return jsonify({"error": str(ve)}), 400
-        except Exception as e:
-            app.logger.error(f"Error in calculate_rm_pro_forma: {str(e)}")
-            app.logger.error(traceback.format_exc())
-            return jsonify({"error": str(e)}), 500
-
-    # Call this function in your create_app function
-    with app.app_context():
-        get_table_names(app)
-        test_database_connection(app)
 
     return app
 
