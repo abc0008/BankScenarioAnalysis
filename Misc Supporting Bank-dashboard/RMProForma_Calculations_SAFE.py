@@ -306,14 +306,12 @@ class RMProFormaModel:
         if date < self.first_production_date:
             return 0.0
         
-        months_since_production = (date.year - self.first_production_date.year) * 12 + (date.month - self.first_production_date.month)
-        year = min(months_since_production // 12, 4)
         # Determine the current yield curve based on the date
         yield_curve_date = max(d for d in self.yield_curves.keys() if d <= date)
-        #yield_curve = self.yield_curves[yield_curve_date]
-        #loan_yield = yield_curve.get_rate(self.inputs['averageLifeLoans']) / 12    
-        loan_yield = self.inputs['goingOnYields'][year]['loans']*100
-        return df.iloc[i]['loan_balance'] * loan_yield / 12
+        yield_curve = self.yield_curves[yield_curve_date]
+        loan_yield = yield_curve.get_rate(self.inputs['averageLifeLoans']) / 12
+        
+        return df.iloc[i]['loan_balance'] * loan_yield
 
 
     def _calculate_interest_income_lines(self, i, df):
@@ -322,14 +320,13 @@ class RMProFormaModel:
         if date < self.first_production_date:
             return 0.0
         
-        months_since_production = (date.year - self.first_production_date.year) * 12 + (date.month - self.first_production_date.month)
-        year = min(months_since_production // 12, 4)
         # Determine the current yield curve based on the date
         yield_curve_date = max(d for d in self.yield_curves.keys() if d <= date)
-        #yield_curve = self.yield_curves[yield_curve_date]
-        #line_yield = yield_curve.get_rate(self.inputs['averageLifeLines']) / 12
-        line_yield = self.inputs['goingOnYields'][year]['lines']*100
-        return df.iloc[i]['line_balance'] * line_yield / 12
+        yield_curve = self.yield_curves[yield_curve_date]
+        line_yield = yield_curve.get_rate(self.inputs['averageLifeLines']) / 12
+        
+        return df.iloc[i]['line_balance'] * line_yield
+
 
     def _calculate_deferred_fees_and_costs(self, i, df):
         """Calculate deferred fees and costs, considering deferral, amortization, and prepayments."""
@@ -345,7 +342,7 @@ class RMProFormaModel:
         monthly_line_production = self.inputs['annualProduction'][year]['loans'] * self.inputs['loanVsLinePercentage'] / (1 - self.inputs['loanVsLinePercentage']) / 12.0
         total_production = monthly_loan_production + monthly_line_production
 
-        new_origination_fees = total_production * (self.inputs['originationFeePercentage']*100)
+        new_origination_fees = total_production * self.inputs['originationFeePercentage']
         new_direct_costs = (total_production / self.inputs['avgLoanExposureAtOrigination']) * self.direct_cost_per_loan
 
         # Calculate indirect costs (to be expensed immediately)
@@ -423,8 +420,8 @@ class RMProFormaModel:
         
         months_since_production = (date.year - self.first_production_date.year) * 12 + (date.month - self.first_production_date.month)
         year = min(months_since_production // 12, 4)
-        monthly_production = (self.inputs['annualProduction'][year]['loans'] * (self.inputs['loanVsLinePercentage']*100)) / 12.0
-        prepayment_rate = (self.inputs['prepayPercentageOfBalance']*100) / 12.0 
+        monthly_production = self.inputs['annualProduction'][year]['loans'] / 12.0
+        prepayment_rate = self.inputs['prepayPercentageOfBalance'] / 12.0 
         
         if i == 0 or df.index[i-1] < self.first_production_date:
             return {
@@ -459,9 +456,9 @@ class RMProFormaModel:
         
         months_since_production = (date.year - self.first_production_date.year) * 12 + (date.month - self.first_production_date.month)
         year = min(months_since_production // 12, 4)
-        monthly_production = self.inputs['annualProduction'][year]['loans'] * (1-(self.inputs['loanVsLinePercentage']*100)) / 12.0
-        utilization_rate = self.inputs['lineUtilizationPercentage']*100 
-        prepayment_rate = (self.inputs['prepayPercentageOfBalance']*100) / 12.0 
+        monthly_production = self.inputs['annualProduction'][year]['loans'] * self.inputs['loanVsLinePercentage'] / (1 - self.inputs['loanVsLinePercentage']) / 12.0
+        utilization_rate = self.inputs['lineUtilizationPercentage'] 
+        prepayment_rate = self.inputs['prepayPercentageOfBalance'] / 12.0 
         
         if i == 0 or df.index[i-1] < self.first_production_date:
             utilization_production = monthly_production * utilization_rate
@@ -509,8 +506,8 @@ class RMProFormaModel:
         
         months_since_production = (date.year - self.first_production_date.year) * 12 + (date.month - self.first_production_date.month)
         year = min(months_since_production // 12, 4)
-        deposit_yield = self.inputs['goingOnYields'][year]['deposits']*100
-        return df.iloc[i]['deposit_balance'] * deposit_yield / 12
+        deposit_yield = self.inputs['goingOnYields'][year]['deposits'] / 12.0
+        return df.iloc[i]['deposit_balance'] * deposit_yield
 
 
     def _calculate_provision_expense(self, i, df):
@@ -635,13 +632,6 @@ class RMProFormaModel:
             total_metrics['total_deferred_cost_amortization'] = annual_summary['deferred_cost_amortization'].sum()
             total_metrics['total_indirect_costs'] = annual_summary['indirect_costs'].sum()
 
-            # Update total metrics to include new ratios
-            total_metrics['return_on_average_assets'] = annual_summary['return_on_average_assets'].iloc[-1]
-            total_metrics['return_on_average_equity'] = annual_summary['return_on_average_equity'].iloc[-1]
-            total_metrics['portfolio_loan_yield'] = annual_summary['portfolio_loan_yield'].iloc[-1]
-            total_metrics['portfolio_deposit_yield'] = annual_summary['portfolio_deposit_yield'].iloc[-1]
-            total_metrics['net_interest_margin'] = annual_summary['net_interest_margin'].iloc[-1]
-
             logger.info("Pro forma calculation completed successfully")
             
             # Create the final results dictionary
@@ -689,7 +679,7 @@ class RMProFormaModel:
         except Exception as e:
             logger.error(f"Unexpected error in calculate_pro_forma: {str(e)}")
             logger.error(f"Traceback: {traceback.format_exc()}")
-            raise ValueError(f"An unexpected error occurred: {str(e)}")
+            raise ValueError(f"An unexpected error occurred: {str(e)}")    
 
     def _generate_annual_summary(self, monthly_schedule):
         """Generate annual summary from monthly schedule."""
@@ -703,7 +693,8 @@ class RMProFormaModel:
             'net_income', 'salary_expense', 'benefits_expense', 
             'incentive_compensation_expense', 'discretionary_expense',
             'origination_fees', 'unused_commitment_fees',
-            'deferred_cost_amortization', 'indirect_costs'
+            'deferred_cost_amortization',  # Previously added
+            'indirect_costs'  # Newly added
         ]
 
         balance_sheet_items = [
@@ -712,22 +703,13 @@ class RMProFormaModel:
             'deferred_costs', 'deferred_origination_fees'
         ]
 
-        # Add new items for loans and lines
-        loan_items = [
-            'loan_monthly_production', 'loan_prepayment_amount', 'loan_scheduled_amortization'
-        ]
-
-        line_items = [
-            'line_monthly_production', 'line_utilization_production', 'line_prepayment_amount'
-        ]
-
         # Initialize an empty DataFrame for annual summary
         annual_summary = pd.DataFrame()
         
         logger.debug(f"Annual summary initialized: {annual_summary}")
 
         # Validate presence of required columns in monthly_schedule
-        required_columns = income_statement_items + balance_sheet_items + loan_items + line_items
+        required_columns = income_statement_items + balance_sheet_items
         missing_columns = [col for col in required_columns if col not in monthly_schedule.columns]
         if missing_columns:
             raise ValueError(f"Missing columns in monthly_schedule: {missing_columns}")
@@ -742,42 +724,9 @@ class RMProFormaModel:
 
         # Capture the last value of balance sheet items annually
         annual_summary[balance_sheet_items] = monthly_schedule[balance_sheet_items].resample('A').last()
-
-        # Sum the new loan and line items annually
-        annual_summary[loan_items + line_items] = monthly_schedule[loan_items + line_items].resample('A').sum()
         
-        # Calculate average assets and equity for return calculations
-        annual_summary['average_assets'] = monthly_schedule['total_assets'].resample('A').mean()
-        annual_summary['average_equity'] = monthly_schedule['total_equity'].resample('A').mean()
-        
-        # Calculate Return on Average Assets (ROAA) and Return on Average Equity (ROAE)
-        annual_summary['return_on_average_assets'] = annual_summary['net_income'] / annual_summary['average_assets']
-        annual_summary['return_on_average_equity'] = annual_summary['net_income'] / annual_summary['average_equity']
-
-        # Calculate Portfolio Loan Yield (Loans & Lines)
-        annual_summary['portfolio_loan_yield'] = (
-            (annual_summary['interest_income_loans'] + annual_summary['interest_income_lines']) /
-            (annual_summary['loan_balance'] + annual_summary['line_balance'])
-        ).replace([np.inf, -np.inf], np.nan)
-
-        # Calculate Portfolio Deposit Yield
-        annual_summary['portfolio_deposit_yield'] = (
-            annual_summary['interest_expense'] / annual_summary['deposit_balance']
-        ).replace([np.inf, -np.inf], np.nan)
-
-        # Calculate Net Interest Margin (NIM) %
-        annual_summary['average_earning_assets'] = monthly_schedule[['loan_balance', 'line_balance']].sum(axis=1).resample('A').mean()
-        annual_summary['net_interest_margin'] = (
-            (annual_summary['interest_income_loans'] + annual_summary['interest_income_lines'] - 
-             annual_summary['interest_expense']) / 
-            annual_summary['average_earning_assets']
-        ).replace([np.inf, -np.inf], np.nan)
-
-        # Remove rows where all key metrics are NaN
-        key_metrics = ['portfolio_loan_yield', 'portfolio_deposit_yield', 'net_interest_margin']
-        annual_summary = annual_summary.dropna(subset=key_metrics, how='all')
-
         # Calculate Efficiency Ratio annually
+        # Formula: Non-Interest Expense / (Interest Income Loans + Interest Income Lines + Origination Fees + Unused Commitment Fees - Interest Expense)
         denominator = (
             annual_summary['interest_income_loans'] + 
             annual_summary['interest_income_lines'] + 
@@ -786,7 +735,12 @@ class RMProFormaModel:
             annual_summary['interest_expense']
         )
 
+        # Handle potential division by zero by replacing zeros with NaN to avoid infinite values
         annual_summary['efficiency_ratio'] = annual_summary['non_interest_expense'] / denominator.replace({0: np.nan})
+
+        # Optionally, fill NaN values with a default value or handle them as per business logic
+        # For example, setting NaN to zero:
+        # annual_summary['efficiency_ratio'].fillna(0, inplace=True)
 
         logger.debug(f"Final annual_summary: {annual_summary}")
         return annual_summary
@@ -802,7 +756,7 @@ class RMProFormaModel:
 
     def calculate(self):
         try:
-            logger.info("Starting calculate method")
+            # ... (existing code)
             
             monthly_schedule = self._generate_monthly_schedule()
             logger.debug(f"Monthly schedule generated: {monthly_schedule.head()}")
@@ -810,24 +764,9 @@ class RMProFormaModel:
             annual_summary = self._generate_annual_summary(monthly_schedule)
             logger.debug(f"Annual summary generated: {annual_summary}")
             
-            cumulative_payback = self._calculate_cumulative_payback(monthly_schedule)
-            logger.debug(f"Cumulative payback calculated: {cumulative_payback}")
-            
-            yield_curves = {str(date): {str(tenor): float(rate) for tenor, rate in curve.curve.items()} 
-                            for date, curve in self.yield_curves.items()}
-            
-            results = {
-                'monthlySchedule': monthly_schedule.reset_index().to_dict('records'),
-                'annualSummary': annual_summary.reset_index().to_dict('records'),
-                'cumulativePayback': cumulative_payback,
-                'yieldCurves': yield_curves
-            }
-            
-            logger.info("Calculate method completed successfully")
-            return results
+            # ... (rest of the method)
         except Exception as e:
             logger.error(f"Error in calculate method: {str(e)}")
-            logger.error(f"Traceback: {traceback.format_exc()}")
             raise
 
 def calculate_pro_forma(inputs):
